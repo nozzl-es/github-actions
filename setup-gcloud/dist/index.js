@@ -5301,7 +5301,14 @@ function getLatestGcloudSDKVersion() {
                 throw new Error(`Failed to retrieve gcloud SDK version, HTTP error code: ${res.message.statusCode} url: ${queryUrl}`);
             }
             const body = yield res.readBody();
-            const responseObject = JSON.parse(body);
+	    let responseObject;
+
+	    try {
+		responseObject = JSON.parse(body);
+	    }
+	    catch (err) {
+		throw new Error(`getLatestGcloudSDKVersion could not parse '${body}' (${err.message})`);
+	    }
             if (!responseObject.version) {
                 throw new Error(`Failed to retrieve gcloud SDK version, invalid response body: ${body}`);
             }
@@ -10223,7 +10230,14 @@ function parseServiceAccountKey(serviceAccountKey) {
     if (!serviceAccountKey.trim().startsWith('{')) {
         serviceAccount = Buffer.from(serviceAccountKey, 'base64').toString('utf8');
     }
-    return JSON.parse(serviceAccount);
+    let parsed;
+    try {
+	parsed = JSON.parse(serviceAccount);
+    }
+    catch (err) {
+	throw new Error(`parseServiceAccountKey could not parse '${serviceAccount}' (${err.message})`);
+    }
+    return parsed;
 }
 exports.parseServiceAccountKey = parseServiceAccountKey;
 /**
@@ -12166,8 +12180,8 @@ function getManifestFromRepo(owner, repo, auth, branch = 'master') {
             try {
                 releases = JSON.parse(versionsRaw);
             }
-            catch (_a) {
-                core.debug('Invalid json');
+            catch (err) {
+                core.warning(`Invalid json in getManifestFromRepo '${versionsRaw}' (${err.message})`);
             }
         }
         return releases;
@@ -12774,6 +12788,7 @@ class HttpClient {
                 response.headers = res.message.headers;
             }
             catch (err) {
+		core.warning(`_processResponse could not parse '${contents}' (${err.message})`);
                 // Invalid resource (contents not json);  leaving result obj null
             }
             // note that 3xx redirects are handled by the http layer.
